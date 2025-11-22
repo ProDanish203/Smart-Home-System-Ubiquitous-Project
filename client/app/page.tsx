@@ -5,22 +5,21 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function Home() {
   return (
-    <main className="min-h-screen w-full bg-background">
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url(/placeholder.svg?height=1080&width=1920&query=modern minimalist smart home interior with technology and white walls)",
-          opacity: 0.08,
-        }}
-      />
+    <main
+      className="min-h-screen w-full bg-background bg-cover bg-center"
+      style={{
+        backgroundImage: "url(/home-banner.jpg)",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
-      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
         <div className="text-center mb-16 max-w-2xl">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
             Smart Home Control
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-white">
             Manage your home automation systems from one unified interface
           </p>
         </div>
@@ -50,7 +49,7 @@ export default function Home() {
         </div>
 
         <div className="mt-16 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white">
             Select a module to begin controlling your smart home
           </p>
         </div>
