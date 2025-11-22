@@ -6,17 +6,57 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import CameraFeed from "./camera-feed";
-import { type ActivityLog } from "./activity-logs";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  clearLightActivityLogs,
+  controlLight,
+  getLightActivityLogs,
+  getLightStatus,
+  toggleLightMode,
+} from "@/API/light";
+import { toast } from "sonner";
+import { LoaderIcon } from "lucide-react";
+import {
+  GetLightLogsApiResponse,
+  GetLightStatusApiResponse,
+} from "@/API/api-response";
 
 export default function SmartLights() {
-  const [isAutoMode, setIsAutoMode] = useState(true);
-  const [brightness, setBrightness] = useState(80);
   const [currentTime, setCurrentTime] = useState("14:30");
-  const [personPresent, setPersonPresent] = useState(true);
-  const [lightsOn, setLightsOn] = useState(true);
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const queryClient = useQueryClient();
+  const brightnessDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const brightnessDebounceRef = useRef<NodeJS.Timeout>(null);
+  const { data: statusData } = useQuery({
+    queryKey: ["light-status"],
+    queryFn: getLightStatus,
+    refetchInterval: 10000,
+  });
+
+  const { data: logsData, isLoading: isLogsLoading } = useQuery({
+    queryKey: ["light-logs"],
+    queryFn: getLightActivityLogs,
+    refetchInterval: 10000,
+  });
+
+  const lightStatus: GetLightStatusApiResponse | null = statusData?.success
+    ? statusData.response
+    : null;
+  const isAutoMode = lightStatus?.mode === "auto" ? true : false;
+  const brightness = lightStatus?.brightness ?? 80;
+  const personPresent = lightStatus?.presence_detected ?? false;
+  const lightsOn = lightStatus?.is_on ?? true;
+
+  const logs: GetLightLogsApiResponse[] =
+    logsData?.success && Array.isArray(logsData.response)
+      ? logsData.response
+      : [];
+
+  const refetchAll = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["light-logs"] }),
+      queryClient.invalidateQueries({ queryKey: ["light-status"] }),
+    ]);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -28,104 +68,75 @@ export default function SmartLights() {
     return () => clearInterval(timer);
   }, []);
 
-  const addLog = (
-    action: string,
-    status: "success" | "processing" | "error" = "success",
-    details?: string
-  ) => {
-    const timestamp = new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    setLogs((prev) =>
-      [
-        { id: Date.now().toString(), timestamp, action, status, details },
-        ...prev,
-      ].slice(0, 50)
-    );
-  };
-
-  const handleFramesCaptured = () => {
-    addLog("Presence analysis complete", "success", "60 frames processed");
-    setTimeout(() => {
-      setPersonPresent(true);
-      addLog("Person detected", "success", "Room status updated");
-    }, 1000);
-  };
-
   useEffect(() => {
-    if (isAutoMode) {
-      const [hours] = currentTime.split(":").map(Number);
-      const isDayTime = hours >= 6 && hours < 18;
+    return () => {
+      if (brightnessDebounceRef.current)
+        clearTimeout(brightnessDebounceRef.current);
+    };
+  }, []);
 
-      if (personPresent) {
-        if (!lightsOn) {
-          setLightsOn(true);
-          addLog(
-            "Lights activated",
-            "success",
-            isDayTime ? "Day mode" : "Night mode"
-          );
-        }
-      } else {
-        if (lightsOn) {
-          setLightsOn(false);
-          addLog("Lights deactivated", "success", "No person detected");
-        }
-      }
-    }
-  }, [personPresent, isAutoMode, currentTime, lightsOn]);
+  const handleClearLogs = async () => {
+    const { success, response } = await clearLightActivityLogs();
+    if (success) {
+      await refetchAll();
+      toast.success("Logs cleared successfully");
+    } else toast.error(`Error clearing logs: ${response}`);
+  };
 
   const handleBrightnessChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newBrightness = Number.parseInt(e.target.value);
-    setBrightness(newBrightness);
-    setIsAutoMode(false);
 
     if (brightnessDebounceRef.current) {
       clearTimeout(brightnessDebounceRef.current);
     }
 
-    brightnessDebounceRef.current = setTimeout(() => {
-      addLog(
-        "Brightness adjusted",
-        "success",
-        `Manual mode: ${newBrightness}%`
-      );
+    queryClient.setQueryData(["light-status"], (old: any) => {
+      if (!old?.success) return old;
+      return {
+        ...old,
+        response: {
+          ...old.response,
+          brightness: newBrightness,
+          mode: "manual",
+        },
+      };
+    });
+
+    brightnessDebounceRef.current = setTimeout(async () => {
+      const { success, response } = await controlLight({
+        is_on: lightsOn,
+        brightness: newBrightness,
+        mode: "manual",
+      });
+
+      if (success) await refetchAll();
+      else {
+        toast.error(`Error setting brightness: ${response}`);
+        await refetchAll();
+      }
     }, 500);
   };
 
-  const toggleLights = () => {
-    setLightsOn(!lightsOn);
-    setIsAutoMode(false);
-    addLog(
-      lightsOn ? "Lights turned off" : "Lights turned on",
-      "success",
-      "Manual control"
-    );
+  const toggleLights = async () => {
+    const { success, response } = await controlLight({
+      is_on: !lightsOn,
+      brightness,
+      mode: "manual",
+    });
+
+    if (success) await refetchAll();
+    else toast.error(`Error toggling lights: ${response}`);
   };
 
-  const togglePersonPresence = () => {
-    setPersonPresent(!personPresent);
-    addLog(
-      personPresent ? "Room empty" : "Person detected",
-      "success",
-      "Simulated status"
-    );
+  const toggleAutoMode = async () => {
+    const newMode = isAutoMode ? "manual" : "auto";
+    const { success, response } = await toggleLightMode(newMode);
+
+    if (success) await refetchAll();
+    else toast.error(`Error toggling mode: ${response}`);
   };
 
-  const toggleAutoMode = () => {
-    setIsAutoMode(!isAutoMode);
-    addLog(isAutoMode ? "Auto mode disabled" : "Auto mode enabled", "success");
-  };
-
-  useEffect(() => {
-    return () => {
-      if (brightnessDebounceRef.current) {
-        clearTimeout(brightnessDebounceRef.current);
-      }
-    };
-  }, []);
+  const handleFramesCaptured = () => {};
 
   return (
     <div className="space-y-6">
@@ -147,32 +158,37 @@ export default function SmartLights() {
                 <Button
                   size="sm"
                   className="text-xs cursor-pointer"
-                  onClick={() => setLogs([])}
+                  onClick={handleClearLogs}
                 >
                   Clear Logs
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto max-h-64">
+            <CardContent className="flex-1 overflow-y-auto max-h-96">
               <div className="space-y-2">
-                {logs.slice(0, 5).length === 0 ? (
+                {isLogsLoading ? (
+                  <LoaderIcon className="animate-spin size-6" />
+                ) : logs.length > 0 ? (
+                  <>
+                    {logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="text-xs pb-2 border-b border-border last:border-0"
+                      >
+                        <p className="font-mono text-muted-foreground">
+                          {log.timestamp}
+                        </p>
+                        <p className="mt-1 text-foreground leading-relaxed">
+                          {log.action} - Brightness: {log.brightness}% (
+                          {log.reason})
+                        </p>
+                      </div>
+                    ))}
+                  </>
+                ) : (
                   <p className="text-xs text-muted-foreground text-center py-4">
                     No activity yet
                   </p>
-                ) : (
-                  logs.slice(0, 5).map((log) => (
-                    <div
-                      key={log.id}
-                      className="text-xs pb-2 border-b border-border last:border-0"
-                    >
-                      <p className="font-mono text-muted-foreground">
-                        {log.timestamp}
-                      </p>
-                      <p className="mt-1 text-foreground leading-relaxed">
-                        {log.action}
-                      </p>
-                    </div>
-                  ))
                 )}
               </div>
             </CardContent>
@@ -223,13 +239,6 @@ export default function SmartLights() {
                   }`}
                 />
               </div>
-              <Button
-                onClick={togglePersonPresence}
-                variant="outline"
-                className="w-full border-border hover:bg-muted text-foreground font-medium transition-colors duration-200 bg-white"
-              >
-                Simulate {personPresent ? "Room Empty" : "Person Present"}
-              </Button>
             </CardContent>
           </Card>
 
