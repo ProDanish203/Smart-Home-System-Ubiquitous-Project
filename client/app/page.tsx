@@ -1,0 +1,60 @@
+"use client";
+import Link from "next/link";
+import { MODULES } from "@/lib/data";
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function Home() {
+  return (
+    <main className="min-h-screen w-full bg-background">
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url(/placeholder.svg?height=1080&width=1920&query=modern minimalist smart home interior with technology and white walls)",
+          opacity: 0.08,
+        }}
+      />
+
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
+        <div className="text-center mb-16 max-w-2xl">
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-3">
+            Smart Home Control
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Manage your home automation systems from one unified interface
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+          {MODULES.map((module) => (
+            <Link key={module.id} href={`/module/${module.value}`}>
+              <Card className="h-72 cursor-pointer transition-all duration-200 hover:shadow-lg border-border hover:border-primary/40 bg-card group">
+                <CardContent className="p-8 h-full flex flex-col items-center justify-center text-center">
+                  <div className="text-6xl mb-6 group-hover:scale-110 transition-transform duration-200">
+                    {module.icon}
+                  </div>
+
+                  <h2 className="text-xl font-semibold text-foreground mb-2">
+                    {module.label}
+                  </h2>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {module.description}
+                  </p>
+
+                  <div className="mt-6 h-1 w-12 bg-primary rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+        <div className="mt-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            Select a module to begin controlling your smart home
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
