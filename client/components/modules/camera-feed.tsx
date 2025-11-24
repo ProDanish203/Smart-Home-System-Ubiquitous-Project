@@ -115,12 +115,12 @@ export default function CameraFeed({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 max-sm:px-2">
-        <div className="relative bg-muted rounded-lg overflow-hidden border border-border">
+        <div className="relative bg-muted rounded-lg overflow-hidden border border-border max-h-[500px]">
           <video
             ref={videoRef}
             autoPlay
             playsInline
-            className="w-full h-full min-h-[400px] object-cover"
+            className="w-full h-full min-h-[500px] object-cover"
           />
           {!isStreaming && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/10">
