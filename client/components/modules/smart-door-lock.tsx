@@ -23,6 +23,7 @@ import {
   GetDoorLogsApiResponse,
   GetRegisteredFacesResponse,
 } from "@/API/api-response";
+import { cn } from "@/lib/utils";
 
 export default function SmartDoorLock() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -230,11 +231,12 @@ export default function SmartDoorLock() {
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span>Door System Status</span>
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${
+                    className={cn(
+                      "text-xs px-2 py-1 rounded-full",
                       doorStatus.face_recognition_available
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
-                    }`}
+                    )}
                   >
                     {doorStatus.face_recognition_available
                       ? "Active"
