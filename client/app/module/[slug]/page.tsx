@@ -59,7 +59,7 @@ export default async function ModulePage({ params }: PageProps) {
               <h1 className="text-2xl font-bold text-foreground">
                 {module.label}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground max-md:hidden">
                 {module.description}
               </p>
             </div>
@@ -68,7 +68,7 @@ export default async function ModulePage({ params }: PageProps) {
             href="/"
             className="px-4 py-2 text-sm font-medium text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors duration-200"
           >
-            ← Back
+            ← <span className="max-md:hidden">Back</span>
           </Link>
         </div>
       </header>

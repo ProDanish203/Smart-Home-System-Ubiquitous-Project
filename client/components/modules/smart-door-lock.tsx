@@ -267,7 +267,8 @@ export default function SmartDoorLock() {
                     )}
                     {doorStatus.last_timestamp && (
                       <p className="text-xs text-muted-foreground">
-                        Time: {doorStatus.last_timestamp}
+                        Time:{" "}
+                        {new Date(doorStatus.last_timestamp).toLocaleString()}
                       </p>
                     )}
                   </div>
@@ -464,7 +465,7 @@ export default function SmartDoorLock() {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-mono text-muted-foreground">
-                            {log.timestamp}
+                            {new Date(log.timestamp).toLocaleString()}
                           </p>
                           {log.success ? (
                             <CheckCircle className="w-3 h-3 text-emerald-600" />

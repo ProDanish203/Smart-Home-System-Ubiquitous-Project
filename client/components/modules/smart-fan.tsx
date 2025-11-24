@@ -288,7 +288,7 @@ export default function SmartFan() {
                         className="text-xs pb-2 border-b border-border last:border-0"
                       >
                         <p className="font-mono text-muted-foreground">
-                          {log.timestamp}
+                          {new Date(log.timestamp).toLocaleString()}
                         </p>
                         <p className="mt-1 text-foreground leading-relaxed">
                           {log.action} ({log.status})
