@@ -32,4 +32,12 @@ export const MODULES: Module[] = [
     description: "Automatic lights based on time and presence",
     color: "from-amber-400 to-orange-500",
   },
+  {
+    id: "4",
+    label: "Smart Windows",
+    value: "smart-windows",
+    icon: "☀️",
+    description: "Weather-based automatic window control",
+    color: "from-teal-500 to-cyan-500",
+  },
 ];

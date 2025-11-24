@@ -96,3 +96,34 @@ export interface DoorStatusResponse {
   face_recognition_available: boolean;
   api_provider: string;
 }
+
+export interface GetWindowStatusApiResponse {
+  id: number;
+  is_open: boolean;
+  mode: "auto" | "manual";
+  auto_reason: string;
+  timestamp: string;
+}
+
+export interface GetWindowLogsApiResponse {
+  id: number;
+  action: string;
+  reason: string;
+  weather_condition: string;
+  timestamp: string;
+}
+
+export interface CheckWindowWeatherApiResponse {
+  action: string;
+  reason: string;
+  weather: {
+    temperature: number;
+    description: string;
+    humidity: number;
+    feels_like: number;
+    wind_speed: number;
+    rain_probability: number;
+    weather_code: number;
+  };
+  windows_open: boolean;
+}

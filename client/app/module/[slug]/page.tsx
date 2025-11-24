@@ -3,6 +3,7 @@ import { MODULES } from "@/lib/data";
 import SmartDoorLock from "@/components/modules/smart-door-lock";
 import SmartFan from "@/components/modules/smart-fan";
 import SmartLights from "@/components/modules/smart-lights";
+import SmartWindows from "@/components/modules/smart-window";
 import { ChevronLeft } from "lucide-react";
 
 interface PageProps {
@@ -45,6 +46,8 @@ export default async function ModulePage({ params }: PageProps) {
         return <SmartFan />;
       case "smart-lights":
         return <SmartLights />;
+      case "smart-windows":
+        return <SmartWindows />;
       default:
         return null;
     }
