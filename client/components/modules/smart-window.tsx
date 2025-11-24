@@ -143,7 +143,7 @@ export default function SmartWindows() {
                   <p className="text-sm font-medium text-foreground mb-1">
                     Temperature
                   </p>
-                  <p className="text-3xl font-bold text-primary">
+                  <p className="sm:text-3xl text-2xl font-bold text-primary">
                     {weather?.temperature ?? "--"}°C
                   </p>
                   {weather?.feels_like && (
@@ -156,7 +156,7 @@ export default function SmartWindows() {
                   <p className="text-sm font-medium text-foreground mb-1">
                     Humidity
                   </p>
-                  <p className="text-3xl font-bold text-primary">
+                  <p className="sm:text-3xl text-2xl font-bold text-primary">
                     {weather?.humidity ?? "--"}%
                   </p>
                   {weather?.description && (
@@ -188,7 +188,7 @@ export default function SmartWindows() {
                     </p>
                   </div>
                   <p
-                    className={`text-2xl font-bold ${getRainProbabilityColor()}`}
+                    className={`sm:text-3xl text-2xl font-bold ${getRainProbabilityColor()}`}
                   >
                     {weather?.rain_probability ?? "--"}%
                   </p>
@@ -222,7 +222,9 @@ export default function SmartWindows() {
                     </p>
                   )}
                 </div>
-                <span className="text-4xl">{isWindowOpen ? "☀️" : "🚪"}</span>
+                <span className="sm:text-4xl text-2xl">
+                  {isWindowOpen ? "☀️" : "🚪"}
+                </span>
               </div>
 
               <Button
@@ -236,15 +238,6 @@ export default function SmartWindows() {
               >
                 {isWindowOpen ? "Close Windows" : "Open Windows"}
               </Button>
-
-              {isAutoMode && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-700 text-center font-medium">
-                    ℹ️ Windows are in auto mode. Switch to manual to control
-                    directly.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
