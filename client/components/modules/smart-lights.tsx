@@ -13,6 +13,7 @@ import {
   getLightActivityLogs,
   getLightStatus,
   toggleLightMode,
+  detectPresenceInLight,
 } from "@/API/light";
 import { toast } from "sonner";
 import { LoaderIcon } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 
 export default function SmartLights() {
   const [currentTime, setCurrentTime] = useState("14:30");
+  const [isDetecting, setIsDetecting] = useState(false);
   const queryClient = useQueryClient();
   const brightnessDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -136,14 +138,56 @@ export default function SmartLights() {
     else toast.error(`Error toggling mode: ${response}`);
   };
 
-  const handleFramesCaptured = () => {};
+  const handleFrameCaptured = async (imageData: ImageData) => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = imageData.width;
+      canvas.height = imageData.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.putImageData(imageData, 0, 0);
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob!);
+          },
+          "image/jpeg",
+          0.8
+        );
+      });
+
+      const formData = new FormData();
+      formData.append("image", blob, "frame.jpg");
+
+      const { success, response } = await detectPresenceInLight(formData);
+
+      if (success) await refetchAll();
+      else console.error("Error detecting presence:", response);
+    } catch (error) {
+      console.error("Error processing frame:", error);
+    }
+  };
+
+  const handleDetectionStart = () => {
+    setIsDetecting(true);
+    toast.success("Starting presence detection");
+  };
+
+  const handleDetectionStop = () => {
+    setIsDetecting(false);
+    toast.info("Stopped presence detection");
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CameraFeed
-            onFramesCaptured={handleFramesCaptured}
+            onFrameCaptured={handleFrameCaptured}
+            onDetectionStart={handleDetectionStart}
+            onDetectionStop={handleDetectionStop}
             title="Presence Detection Camera"
             buttonText="Start Detection"
             stopButtonText="Stop Detection"
@@ -239,6 +283,13 @@ export default function SmartLights() {
                   }`}
                 />
               </div>
+              {isDetecting && (
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700 text-center font-medium">
+                    🔍 Detection active - Analyzing frames...
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -56,6 +56,16 @@ export interface GetLightTimeApiResponse {
   message: string;
 }
 
+export interface DetectPresenceApiResponse {
+  brightness: number;
+  is_dark: boolean;
+  is_night: boolean;
+  lights_on: boolean;
+  message: string;
+  mode: "auto" | "manual";
+  presence_detected: boolean;
+}
+
 export interface GetDoorLogsApiResponse {
   id: number;
   action: string;

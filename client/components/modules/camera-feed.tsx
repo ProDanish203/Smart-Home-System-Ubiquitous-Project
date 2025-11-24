@@ -1,19 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Camera, Square } from "lucide-react";
 
 interface CameraFeedProps {
-  onFramesCaptured?: (frames: ImageData[]) => void;
+  onFrameCaptured?: (frame: ImageData) => void;
+  onDetectionStart?: () => void;
+  onDetectionStop?: () => void;
   title?: string;
   buttonText?: string;
   stopButtonText?: string;
 }
 
 export default function CameraFeed({
-  onFramesCaptured,
+  onFrameCaptured,
+  onDetectionStart,
+  onDetectionStop,
   title = "Camera Feed",
   buttonText = "Open Camera",
   stopButtonText = "Stop Camera",
@@ -21,12 +25,30 @@ export default function CameraFeed({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [frameCount, setFrameCount] = useState(0);
-  const framesRef = useRef<ImageData[]>([]);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const captureFrame = useCallback(() => {
+    if (canvasRef.current && videoRef.current && onFrameCaptured) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+
+        const imageData = ctx.getImageData(
+          0,
+          0,
+          canvasRef.current.width,
+          canvasRef.current.height
+        );
+        onFrameCaptured(imageData);
+      }
+    }
+  }, [onFrameCaptured]);
 
   const startCamera = async () => {
     try {
+      setPermissionDenied(false);
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       });
@@ -34,42 +56,33 @@ export default function CameraFeed({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsStreaming(true);
+        if (onDetectionStart) onDetectionStart();
         startFrameCapture();
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      alert("Unable to access camera. Please check permissions.");
+      setPermissionDenied(true);
+
+      if (error instanceof DOMException) {
+        if (error.name === "NotAllowedError") {
+          alert(
+            "Camera permission denied. Please allow camera access in your browser settings and try again."
+          );
+        } else if (error.name === "NotFoundError") {
+          alert("No camera found on this device.");
+        } else {
+          alert(
+            "Unable to access camera. Please check permissions and try again."
+          );
+        }
+      }
     }
   };
 
   const startFrameCapture = () => {
-    framesRef.current = [];
-    setFrameCount(0);
-
-    // Capture 60 frames over 1 minute (1 frame per second)
-    let capturedFrames = 0;
     captureIntervalRef.current = setInterval(() => {
-      if (canvasRef.current && videoRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0);
-          const imageData = ctx.getImageData(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
-          framesRef.current.push(imageData);
-          setFrameCount(capturedFrames + 1);
-          capturedFrames += 1;
-
-          if (capturedFrames >= 60) {
-            stopFrameCapture();
-            onFramesCaptured?.(framesRef.current);
-          }
-        }
-      }
-    }, 1000);
+      captureFrame();
+    }, 3000);
   };
 
   const stopFrameCapture = () => {
@@ -81,12 +94,16 @@ export default function CameraFeed({
 
   const stopCamera = () => {
     stopFrameCapture();
+
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
+
     setIsStreaming(false);
-    setFrameCount(0);
+
+    onDetectionStop?.();
   };
 
   return (
@@ -107,20 +124,23 @@ export default function CameraFeed({
           />
           {!isStreaming && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-              <p className="text-muted-foreground">Camera not active</p>
+              <p className="text-muted-foreground">
+                {permissionDenied
+                  ? "Camera permission denied"
+                  : "Camera not active"}
+              </p>
             </div>
           )}
-          {isStreaming && frameCount > 0 && (
-            <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-semibold">
-              {frameCount}/60
+          {isStreaming && (
+            <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Live
             </div>
           )}
         </div>
 
-        {/* Hidden canvas for frame capture */}
         <canvas ref={canvasRef} className="hidden" width={1280} height={720} />
 
-        {/* Controls */}
         <div className="flex gap-3">
           {!isStreaming ? (
             <Button
@@ -145,8 +165,10 @@ export default function CameraFeed({
         <div className="bg-muted rounded-lg p-4 border border-border">
           <p className="text-muted-foreground text-sm">
             {isStreaming
-              ? `Capturing frames... ${frameCount}/60 frames collected`
-              : "Click to start capturing frames"}
+              ? "🎥 Capturing and analyzing frames every second..."
+              : permissionDenied
+              ? "❌ Please grant camera permission to start detection"
+              : "Click to start camera and begin detection"}
           </p>
         </div>
       </CardContent>
