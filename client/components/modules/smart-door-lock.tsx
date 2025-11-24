@@ -14,6 +14,8 @@ import {
   clearDoorLogs,
   getRegisteredFaces,
   deleteRegisteredFace,
+  verifyFaceUnlock,
+  getDoorStatus,
 } from "@/API/door";
 import { toast } from "sonner";
 import { LoaderIcon, Upload, Trash2, User, CheckCircle } from "lucide-react";
@@ -24,6 +26,7 @@ import {
 
 export default function SmartDoorLock() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [personName, setPersonName] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -42,6 +45,12 @@ export default function SmartDoorLock() {
     refetchInterval: 10000,
   });
 
+  const { data: statusData } = useQuery({
+    queryKey: ["door-status"],
+    queryFn: getDoorStatus,
+    refetchInterval: 10000,
+  });
+
   const logs: GetDoorLogsApiResponse[] =
     logsData?.success && Array.isArray(logsData.response)
       ? logsData.response
@@ -52,10 +61,13 @@ export default function SmartDoorLock() {
       ? facesData.response
       : [];
 
+  const doorStatus = statusData?.success ? statusData.response : null;
+
   const refetchAll = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["door-logs"] }),
       queryClient.invalidateQueries({ queryKey: ["registered-faces"] }),
+      queryClient.invalidateQueries({ queryKey: ["door-status"] }),
     ]);
   };
 
@@ -126,15 +138,56 @@ export default function SmartDoorLock() {
     if (success) {
       toast.success("Door unlocked successfully");
       await refetchAll();
-    } else {
-      toast.error(`Failed to unlock door: ${response}`);
-    }
+    } else toast.error(`Failed to unlock door: ${response}`);
 
     setIsProcessing(false);
   };
 
-  const handleFramesCaptured = () => {
-    toast.info("Face verification will be integrated soon");
+  const handleFrameCaptured = async (imageData: ImageData) => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = imageData.width;
+      canvas.height = imageData.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.putImageData(imageData, 0, 0);
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob!);
+          },
+          "image/jpeg",
+          0.8
+        );
+      });
+
+      const formData = new FormData();
+      formData.append("image", blob, "frame.jpg");
+
+      const { success, response } = await verifyFaceUnlock(formData);
+
+      if (success) {
+        await refetchAll();
+
+        if (response.success) {
+          toast.success(response.message || "✅ Door unlocked");
+        } else toast.warning(response.message || "❌ Access denied");
+      } else console.error("Error verifying face:", response);
+    } catch (error) {
+      console.error("Error processing frame:", error);
+    }
+  };
+
+  const handleVerificationStart = () => {
+    setIsVerifying(true);
+    toast.success("Face verification started");
+  };
+
+  const handleVerificationStop = () => {
+    setIsVerifying(false);
+    toast.info("Face verification stopped");
   };
 
   const hasRegisteredFaces = registeredFaces.length > 0;
@@ -145,7 +198,9 @@ export default function SmartDoorLock() {
         <div className="lg:col-span-2 space-y-4">
           {hasRegisteredFaces && (
             <CameraFeed
-              onFramesCaptured={handleFramesCaptured}
+              onFrameCaptured={handleFrameCaptured}
+              onDetectionStart={handleVerificationStart}
+              onDetectionStop={handleVerificationStop}
               title="Door Entry Camera"
               buttonText="Start Verification"
               stopButtonText="Stop Verification"
@@ -168,6 +223,76 @@ export default function SmartDoorLock() {
               </CardContent>
             </Card>
           )}
+
+          {doorStatus && (
+            <Card className="bg-white border-border">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Door System Status</span>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      doorStatus.face_recognition_available
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {doorStatus.face_recognition_available
+                      ? "Active"
+                      : "Inactive"}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-3 bg-muted rounded-lg border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Registered Faces
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {doorStatus.registered_faces}
+                  </p>
+                </div>
+
+                {doorStatus.last_action && (
+                  <div className="p-3 bg-muted rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Last Activity
+                    </p>
+                    <p className="text-sm font-medium text-foreground">
+                      {doorStatus.last_action}
+                    </p>
+                    {doorStatus.last_person && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Person: {doorStatus.last_person}
+                      </p>
+                    )}
+                    {doorStatus.last_timestamp && (
+                      <p className="text-xs text-muted-foreground">
+                        Time: {doorStatus.last_timestamp}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {hasRegisteredFaces && isVerifying && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                  Face Verification Active
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-blue-800">
+                  The system is actively scanning and verifying faces. Stand in
+                  front of the camera for verification.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="bg-white border-border">
             <CardHeader>
               <CardTitle className="text-lg">Register New Face</CardTitle>

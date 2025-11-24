@@ -79,3 +79,20 @@ export interface GetRegisteredFacesResponse {
   person_name: string;
   registered_at: string;
 }
+
+export interface VerifyDoorUnlockResponse {
+  action: "denied" | "unlocked";
+  message: string;
+  success: boolean;
+  person_name?: string;
+  confidence?: number;
+}
+
+export interface DoorStatusResponse {
+  registered_faces: number;
+  last_action: string;
+  last_person: string;
+  last_timestamp: string;
+  face_recognition_available: boolean;
+  api_provider: string;
+}
