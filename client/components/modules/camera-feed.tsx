@@ -121,6 +121,7 @@ export default function CameraFeed({
             autoPlay
             playsInline
             className="w-full h-full min-h-[500px] object-cover"
+            style={{ transform: "scaleX(-1)" }}
           />
           {!isStreaming && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/10">
