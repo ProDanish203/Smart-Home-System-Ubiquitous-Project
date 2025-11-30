@@ -10,6 +10,7 @@ interface CameraFeedProps {
   onFrameCaptured?: (frame: ImageData) => void;
   onDetectionStart?: () => void;
   onDetectionStop?: () => void;
+  turnOffFlashlight?: () => void;
   title?: string;
   buttonText?: string;
   stopButtonText?: string;
@@ -19,6 +20,7 @@ export default function CameraFeed({
   onFrameCaptured,
   onDetectionStart,
   onDetectionStop,
+  turnOffFlashlight,
   title = "Camera Feed",
   buttonText = "Open Camera",
   stopButtonText = "Stop Camera",
@@ -161,11 +163,13 @@ export default function CameraFeed({
 
   const clearUploadedImage = () => {
     setUploadedImageUrl(null);
+    turnOffFlashlight?.();
   };
 
   const switchCamera = async () => {
     if (isStreaming) {
       stopCamera();
+      turnOffFlashlight?.();
       setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
       setTimeout(() => startCamera(), 100);
     }
@@ -208,7 +212,9 @@ export default function CameraFeed({
                 autoPlay
                 playsInline
                 className="w-full h-full min-h-[500px] object-cover"
-                style={{ transform: facingMode === "user" ? "scaleX(-1)" : "none" }}
+                style={{
+                  transform: facingMode === "user" ? "scaleX(-1)" : "scaleX(1)",
+                }}
               />
               {!isStreaming && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">

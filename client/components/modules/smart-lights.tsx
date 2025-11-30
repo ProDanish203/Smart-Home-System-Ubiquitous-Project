@@ -16,7 +16,7 @@ import {
   detectPresenceInLight,
 } from "@/API/light";
 import { toast } from "sonner";
-import { Loader, Flashlight } from "lucide-react";
+import { Loader } from "lucide-react";
 import {
   GetLightLogsApiResponse,
   GetLightStatusApiResponse,
@@ -87,7 +87,6 @@ export default function SmartLights() {
 
   useEffect(() => {
     if (flashlightSupported && isDetecting) {
-      console.log(isDetecting, personPresent, lightsOn);
       if (personPresent && lightsOn) turnOnFlashlight();
       else turnOffFlashlight();
     }
@@ -251,14 +250,20 @@ export default function SmartLights() {
         if (response.presence_detected) {
           toast.success("Presence detected in the room, Lights adjusted");
           turnOnFlashlight();
-        } else turnOffFlashlight();
+        } else {
+          toast.info("No presence detected, Lights dimmed");
+          turnOffFlashlight();
+        }
       } else console.error("Error detecting presence:", response);
     } catch (error) {
       console.error("Error processing frame:", error);
     }
   };
 
-  const handleDetectionStart = () => setIsDetecting(true);
+  const handleDetectionStart = () => {
+    setIsDetecting(true);
+    turnOffFlashlight();
+  };
   const handleDetectionStop = () => {
     setIsDetecting(false);
     turnOffFlashlight();
@@ -272,6 +277,7 @@ export default function SmartLights() {
             onFrameCaptured={handleFrameCaptured}
             onDetectionStart={handleDetectionStart}
             onDetectionStop={handleDetectionStop}
+            turnOffFlashlight={turnOffFlashlight}
             title="Presence Detection Camera"
             buttonText="Start Detection"
             stopButtonText="Stop Detection"
