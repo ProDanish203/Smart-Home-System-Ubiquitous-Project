@@ -4,7 +4,6 @@ export const getWindowsWeather = async (city: string) => {
   try {
     const { data } = await api.get(`/windows/weather?city=${city}`);
     if (data) {
-      console.log("Windows Weather Data:", data);
       return {
         success: true,
         response: data,

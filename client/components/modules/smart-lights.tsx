@@ -163,8 +163,11 @@ export default function SmartLights() {
 
       const { success, response } = await detectPresenceInLight(formData);
 
-      if (success) await refetchAll();
-      else console.error("Error detecting presence:", response);
+      if (success) {
+        await refetchAll();
+        if (response.presence_detected)
+          toast.success("Presence detected in the room, Lights adjusted");
+      } else console.error("Error detecting presence:", response);
     } catch (error) {
       console.error("Error processing frame:", error);
     }
@@ -172,12 +175,10 @@ export default function SmartLights() {
 
   const handleDetectionStart = () => {
     setIsDetecting(true);
-    toast.success("Starting presence detection");
   };
 
   const handleDetectionStop = () => {
     setIsDetecting(false);
-    toast.info("Stopped presence detection");
   };
 
   return (

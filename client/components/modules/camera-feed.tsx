@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, Square } from "lucide-react";
+import { Camera, Square, Upload, X, SwitchCamera } from "lucide-react";
+import { toast } from "sonner";
 
 interface CameraFeedProps {
   onFrameCaptured?: (frame: ImageData) => void;
@@ -24,8 +25,11 @@ export default function CameraFeed({
 }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const captureFrame = useCallback(() => {
@@ -50,7 +54,11 @@ export default function CameraFeed({
       setPermissionDenied(false);
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: facingMode,
+        },
       });
 
       if (videoRef.current) {
@@ -106,6 +114,63 @@ export default function CameraFeed({
     onDetectionStop?.();
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onFrameCaptured) return;
+
+    try {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setUploadedImageUrl(imageUrl);
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+            onFrameCaptured(imageData);
+          }
+        };
+        img.src = imageUrl;
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error processing uploaded image:", error);
+      toast.error("Failed to process the uploaded image. Please try again.");
+    }
+
+    e.target.value = "";
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const clearUploadedImage = () => {
+    setUploadedImageUrl(null);
+  };
+
+  const switchCamera = async () => {
+    if (isStreaming) {
+      stopCamera();
+      setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+      setTimeout(() => startCamera(), 100);
+    }
+  };
+
   return (
     <Card className="border-border bg-white">
       <CardHeader>
@@ -116,37 +181,80 @@ export default function CameraFeed({
       </CardHeader>
       <CardContent className="space-y-4 max-sm:px-2">
         <div className="relative bg-muted rounded-lg overflow-hidden border border-border max-h-[500px]">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full min-h-[500px] object-cover"
-            style={{ transform: "scaleX(-1)" }}
-          />
-          {!isStreaming && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-              <p className="text-muted-foreground">
-                {permissionDenied
-                  ? "Camera permission denied"
-                  : "Camera not active"}
-              </p>
-            </div>
-          )}
-          {isStreaming && (
-            <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              Live
-            </div>
+          {uploadedImageUrl ? (
+            <>
+              <img
+                src={uploadedImageUrl}
+                alt="Uploaded for detection"
+                className="w-full h-full min-h-[500px] object-contain"
+              />
+              <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
+                <span className="w-2 h-2 bg-white rounded-full" />
+                Uploaded Image
+              </div>
+              <Button
+                onClick={clearUploadedImage}
+                size="icon"
+                variant="destructive"
+                className="absolute top-4 left-4 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full min-h-[500px] object-cover"
+                style={{ transform: "scaleX(-1)" }}
+              />
+              {!isStreaming && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                  <p className="text-muted-foreground">
+                    {permissionDenied
+                      ? "Camera permission denied"
+                      : "Camera not active"}
+                  </p>
+                </div>
+              )}
+              {isStreaming && (
+                <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  Live
+                </div>
+              )}
+              {isStreaming && (
+                <Button
+                  onClick={switchCamera}
+                  size="icon"
+                  variant="secondary"
+                  className="absolute bottom-4 right-4 rounded-full"
+                >
+                  <SwitchCamera className="w-4 h-4" />
+                </Button>
+              )}
+            </>
           )}
         </div>
 
         <canvas ref={canvasRef} className="hidden" width={1280} height={720} />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
 
         <div className="flex gap-3">
           {!isStreaming ? (
             <Button
               onClick={startCamera}
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors duration-200 gap-2"
+              disabled={uploadedImageUrl !== null}
             >
               <Camera className="w-4 h-4" />
               {buttonText}
@@ -155,11 +263,22 @@ export default function CameraFeed({
             <Button
               onClick={stopCamera}
               className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium transition-colors duration-200 gap-2"
+              disabled={uploadedImageUrl !== null}
             >
               <Square className="w-4 h-4" />
               {stopButtonText}
             </Button>
           )}
+
+          <Button
+            onClick={triggerFileUpload}
+            variant="outline"
+            className="gap-2 font-medium"
+            disabled={isStreaming}
+          >
+            <Upload className="w-4 h-4" />
+            Upload Image
+          </Button>
         </div>
 
         {/* Status */}

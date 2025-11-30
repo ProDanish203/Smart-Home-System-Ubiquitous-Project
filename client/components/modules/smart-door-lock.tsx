@@ -76,7 +76,6 @@ export default function SmartDoorLock() {
     const { success, response } = await clearDoorLogs();
     if (success) {
       await refetchAll();
-      toast.success("Logs cleared successfully");
     } else toast.error(`Error clearing logs: ${response}`);
   };
 
@@ -127,9 +126,7 @@ export default function SmartDoorLock() {
     if (success) {
       toast.success(`Removed ${name} from registered faces`);
       await refetchAll();
-    } else {
-      toast.error(`Failed to remove face: ${response}`);
-    }
+    } else toast.error(`Failed to remove face: ${response}`);
   };
 
   const handleManualUnlock = async () => {
@@ -183,12 +180,10 @@ export default function SmartDoorLock() {
 
   const handleVerificationStart = () => {
     setIsVerifying(true);
-    toast.success("Face verification started");
   };
 
   const handleVerificationStop = () => {
     setIsVerifying(false);
-    toast.info("Face verification stopped");
   };
 
   const hasRegisteredFaces = registeredFaces.length > 0;
