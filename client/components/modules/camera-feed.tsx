@@ -171,10 +171,30 @@ export default function CameraFeed({
 
   const switchCamera = async () => {
     if (isStreaming) {
+      const newMode = facingMode === "user" ? "environment" : "user";
+      setFacingMode(newMode);
       stopCamera();
       turnOffFlashlight?.();
-      setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
-      setTimeout(() => startCamera(), 100);
+      setTimeout(async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: newMode,
+              advanced: [{ torch: false } as any],
+            },
+          });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            setIsStreaming(true);
+            if (onDetectionStart) onDetectionStart();
+            startFrameCapture();
+          }
+        } catch (error) {
+          console.error("Error switching camera:", error);
+        }
+      }, 100);
     }
   };
 
@@ -210,16 +230,25 @@ export default function CameraFeed({
             </>
           ) : (
             <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full min-h-[500px] object-cover"
-                style={{
-                  transform:
-                    facingMode === "user" ? "scaleX(-1)" : "scaleX(-1)",
-                }}
-              />
+              {facingMode === "user" ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full min-h-[500px] object-cover"
+                  style={{
+                    transform: "scaleX(-1)",
+                  }}
+                />
+              ) : facingMode === "environment" ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full min-h-[500px] object-cover"
+                />
+              ) : null}
+
               {!isStreaming && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">
                   <p className="text-muted-foreground">
