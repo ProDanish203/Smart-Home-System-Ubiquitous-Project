@@ -86,11 +86,11 @@ export default function SmartLights() {
   }, []);
 
   useEffect(() => {
-    if (flashlightSupported && isDetecting) {
+    if (flashlightSupported) {
       if (personPresent && lightsOn) turnOnFlashlight();
       else turnOffFlashlight();
     }
-  }, [personPresent, lightsOn, isDetecting]);
+  }, [personPresent, lightsOn]);
 
   useEffect(() => {
     return () => {

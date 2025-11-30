@@ -60,8 +60,10 @@ export default function CameraFeed({
           width: { ideal: 1280 },
           height: { ideal: 720 },
           facingMode: facingMode,
+          advanced: [{ torch: false } as any],
         },
       });
+      turnOffFlashlight?.();
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -104,6 +106,7 @@ export default function CameraFeed({
 
   const stopCamera = () => {
     stopFrameCapture();
+    turnOffFlashlight?.();
 
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -213,7 +216,8 @@ export default function CameraFeed({
                 playsInline
                 className="w-full h-full min-h-[500px] object-cover"
                 style={{
-                  transform: facingMode === "user" ? "scaleX(-1)" : "scaleX(1)",
+                  transform:
+                    facingMode === "user" ? "scaleX(-1)" : "scaleX(-1)",
                 }}
               />
               {!isStreaming && (
