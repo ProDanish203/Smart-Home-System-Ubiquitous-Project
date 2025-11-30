@@ -178,14 +178,8 @@ export default function SmartDoorLock() {
     }
   };
 
-  const handleVerificationStart = () => {
-    setIsVerifying(true);
-  };
-
-  const handleVerificationStop = () => {
-    setIsVerifying(false);
-  };
-
+  const handleVerificationStart = () => setIsVerifying(true);
+  const handleVerificationStop = () => setIsVerifying(false);
   const hasRegisteredFaces = registeredFaces.length > 0;
 
   return (

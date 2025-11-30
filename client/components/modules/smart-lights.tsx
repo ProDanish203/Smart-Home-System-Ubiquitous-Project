@@ -16,7 +16,7 @@ import {
   detectPresenceInLight,
 } from "@/API/light";
 import { toast } from "sonner";
-import { LoaderIcon } from "lucide-react";
+import { Loader, Flashlight } from "lucide-react";
 import {
   GetLightLogsApiResponse,
   GetLightStatusApiResponse,
@@ -25,6 +25,8 @@ import {
 export default function SmartLights() {
   const [currentTime, setCurrentTime] = useState("14:30");
   const [isDetecting, setIsDetecting] = useState(false);
+  const [flashlightSupported, setFlashlightSupported] = useState(false);
+  const flashlightStreamRef = useRef<MediaStream | null>(null);
   const queryClient = useQueryClient();
   const brightnessDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -61,6 +63,47 @@ export default function SmartLights() {
   };
 
   useEffect(() => {
+    const checkFlashlightSupport = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasCamera = devices.some(
+          (device) => device.kind === "videoinput"
+        );
+
+        if (hasCamera && "mediaDevices" in navigator)
+          setFlashlightSupported(true);
+        else {
+          toast.error("Flashlight not supported on this device");
+          setFlashlightSupported(false);
+        }
+      } catch (error) {
+        console.error("Flashlight not supported:", error);
+        setFlashlightSupported(false);
+      }
+    };
+
+    checkFlashlightSupport();
+  }, []);
+
+  useEffect(() => {
+    if (flashlightSupported && isDetecting) {
+      console.log(isDetecting, personPresent, lightsOn);
+      if (personPresent && lightsOn) turnOnFlashlight();
+      else turnOffFlashlight();
+    }
+  }, [personPresent, lightsOn, isDetecting]);
+
+  useEffect(() => {
+    return () => {
+      if (flashlightStreamRef.current) {
+        flashlightStreamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       setCurrentTime(
@@ -76,6 +119,46 @@ export default function SmartLights() {
         clearTimeout(brightnessDebounceRef.current);
     };
   }, []);
+
+  const turnOnFlashlight = async () => {
+    try {
+      if (flashlightStreamRef.current) {
+        flashlightStreamRef.current
+          .getTracks()
+          .forEach((track) => track.stop());
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+          advanced: [{ torch: true } as any],
+        },
+      });
+
+      flashlightStreamRef.current = stream;
+
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities() as any;
+      if (capabilities.torch) {
+        toast.success("Flashlight turned on");
+        await track.applyConstraints({
+          advanced: [{ torch: true } as any],
+        });
+      } else toast.error("Flashlight not supported on this device");
+    } catch (error) {
+      console.error("Error turning on flashlight:", error);
+      toast.error("Error turning on flashlight");
+    }
+  };
+
+  const turnOffFlashlight = () => {
+    if (flashlightStreamRef.current) {
+      flashlightStreamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
+      flashlightStreamRef.current = null;
+    }
+  };
 
   const handleClearLogs = async () => {
     const { success, response } = await clearLightActivityLogs();
@@ -165,20 +248,20 @@ export default function SmartLights() {
 
       if (success) {
         await refetchAll();
-        if (response.presence_detected)
+        if (response.presence_detected) {
           toast.success("Presence detected in the room, Lights adjusted");
+          turnOnFlashlight();
+        } else turnOffFlashlight();
       } else console.error("Error detecting presence:", response);
     } catch (error) {
       console.error("Error processing frame:", error);
     }
   };
 
-  const handleDetectionStart = () => {
-    setIsDetecting(true);
-  };
-
+  const handleDetectionStart = () => setIsDetecting(true);
   const handleDetectionStop = () => {
     setIsDetecting(false);
+    turnOffFlashlight();
   };
 
   return (
@@ -212,7 +295,7 @@ export default function SmartLights() {
             <CardContent className="flex-1 overflow-y-auto max-h-96">
               <div className="space-y-2">
                 {isLogsLoading ? (
-                  <LoaderIcon className="animate-spin size-6" />
+                  <Loader className="animate-spin size-6" />
                 ) : logs.length > 0 ? (
                   <>
                     {logs.map((log) => (
